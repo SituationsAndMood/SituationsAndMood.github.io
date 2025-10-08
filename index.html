@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Umfrage-Verteiler</title>
+  <script>
+    const links = [
+      ["https://survey.questionstar.com/cb99420f", "countera"],
+      ["https://survey.questionstar.com/9f6bf697", "counterb"],
+      ["https://survey.questionstar.com/2daa4b2d", "counterd"],
+      ["https://survey.questionstar.com/b0c109f6", "countere"],
+      ["https://survey.questionstar.com/9e704022", "counterf"]
+    ];
+
+    const API_BASE = "https://api.counterapi.dev/v1/bewertungsstudie";
+    const CORS_PROXY = "https://cors-anywhere-gryk.onrender.com/";
+
+    // Fetch up_count for all counters
+    async function fetchCounts() {
+      return Promise.all(
+        links.map(async ([_, counterName]) => {
+          try {
+            const res = await fetch(`${CORS_PROXY}${API_BASE}/${counterName}`, {
+              method: 'GET',
+              headers: {
+                'Origin': 'github'
+              }
+            });
+            const json = await res.json();
+            return [json.count, json.name];
+          } catch (err) {
+            console.error(`Error fetching counter ${counterName}:`, err);
+            return 0;
+          }
+        })
+      );
+    }
+
+    // Pick a random index among links with the lowest count
+    function getNextIndex(countPairs) {
+        // Extract counts
+        const counts = countPairs.map(([count]) => count);      
+        // Find the minimum count
+        const min = Math.min(...counts);
+      
+        // Find all indices with the minimum count
+        const minIndices = counts
+          .map((c, i) => (c === min ? i : -1))
+          .filter(i => i !== -1);
+      
+        // Pick a random index among the minimums
+        const chosenIndex = minIndices[Math.floor(Math.random() * minIndices.length)];
+      
+        // Get the corresponding name
+        const chosenName = countPairs[chosenIndex][1];
+      
+        // Find the link that matches the name
+        const linkIndex = links.findIndex(([_, name]) => name === chosenName);
+      
+        return linkIndex;
+    }
+
+    // Increment counter
+    async function incrementCounter(counterName) {
+      try {
+        await fetch(`${CORS_PROXY}${API_BASE}/${counterName}/up`, {
+          method: 'GET',
+          headers: {
+            'Origin': 'github'
+          }
+        });
+      } catch (err) {
+        console.error(`Error incrementing counter ${counterName}:`, err);
+      }
+    }
+
+    // Main redirect function
+    async function redirectToSurvey() {
+      try {
+        const counts = await fetchCounts();
+        console.error(counts);
+        const idx = getNextIndex(counts);
+        console.error(idx);
+        const [link, counterName] = links[idx];
+
+        // Increment the chosen counter and total counter in parallel
+        await Promise.all([
+          incrementCounter(counterName),
+          incrementCounter("countertotal")
+        ]);
+
+        // Redirect to the survey
+        window.location.href = link;
+
+      } catch (err) {
+        console.error("Error during redirect:", err);
+        alert("Something went wrong. Please try again.");
+      }
+    }
+
+    window.onload = redirectToSurvey;
+  </script>
+</head>
+<body>
+  <h1>Sie werden gleich weitergeleitet ...</h1>
+  <p>Das kann bis zu einer Minute dauern, bitte verlassen Sie die Seite nicht.</p>
+</body>
+</html>
